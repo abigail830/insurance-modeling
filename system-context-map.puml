@@ -1,0 +1,90 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Application Architecture for Claims Processing (v6)
+
+' Actors
+Person_Ext(customer, "客户", "理赔申请人")
+Person_Ext(agent, "代理人/经纪", "通过Summit系统提交理赔")
+Person_Ext(partner, "合作伙伴", "通过Open System提交理赔")
+
+System_Boundary(staff_boundary, "内部员工操作") {
+    Person(cs_staff, "客服/OM员工", "通过电话或柜台接收申请，并录入Bizagi")
+    Person(assessor, "审核员 (Assessor)", "负责在对应核心系统中进行案件的审核、调查与验证")
+    Person(approver, "审批/授权人（Authoriser）", "负责最终审批和授权赔付")
+}
+System_Ext(dha, "DHA", "外部自动身份验证服务")
+
+' Systems
+System_Boundary(claim_submission, "外部理赔提交渠道") {
+    System(fubon_app, "Fubon APP", "客户手机App")
+    System(fubon_website, "Fubon Web", "官方网站理赔页面")
+    System(whatsapp_kda, "Whatsapp KDA", "自动化机器人/在线聊天")
+    System(summit, "Summit", "代理人/经纪使用的提交通道")
+    System(open_system, "Open System", "合作伙伴使用的提交通道")
+}
+
+System_Boundary(core_processing, "核心理赔与支付系统") {
+    System(bizagi, "Bizagi 系统", "中央汇聚与分发系统；并触发OMP/GL支付")
+
+    System(awd, "AWD 系统", "处理FLEXI/CON-灵活/传统产品理赔(自带支付功能？)")
+    System(bancs, "BanCs 系统", "处理OMP/GL产品理赔")
+    System(vantage, "Vantage 系统", "处理MFC相关理赔(自带支付功能？)")
+
+    System(cmos, "CMos 系统", "支付系统 (由Bizagi调用, 用于OMP/GL理赔)")
+
+    System(csm, "CSM 系统", "客户信息管理")
+    System(avsr, "AVSR", "银行账户验证服务 (仅用于MFC/Vantage流程)")
+    System(qcs, "QCS 系统", "死亡理赔备查系统")
+}
+
+' Relationships
+
+' --- 1. 统一入口: 各渠道的理赔申请汇聚至Bizagi ---
+Rel(agent, summit, "提交理赔")
+Rel(partner, open_system, "提交理赔")
+Rel(customer, fubon_app, "提交理赔")
+Rel(customer, whatsapp_kda, "提交理赔")
+Rel(customer, fubon_website, "提交理赔")
+Rel(fubon_app, bizagi, "发送理赔申请数据")
+' ... (other channel relationships)
+Rel(summit, bizagi, "发送理赔申请数据")
+Rel(cs_staff, bizagi, "手动录入理赔申请")
+Rel(bizagi, dha, "为线上申请自动完成DHA验证")
+
+
+' --- 2. 核心分流: Bizagi根据产品类型，将案件分发至三条独立的处理路径 ---
+Rel(bizagi, awd, "转交 [一般/医疗] 理赔案件")
+Rel(bizagi, bancs, "转交 [OMP/GL] 理赔案件")
+Rel(bizagi, vantage, "转交 [MFC] 理赔案件")
+
+
+' --- 3. 三条并行的处理与支付逻辑 ---
+
+' --- Path 1: AWD (自带支付) ---
+Rel(assessor, awd, "处理一般/医疗理赔并执行付款")
+
+' --- Path 2: BanCs (通过Bizagi -> CMos支付) ---
+Rel(assessor, bancs, "处理OMP/GL理赔")
+Rel_Back(bancs, bizagi, "通知案件处理完成")
+Rel(bizagi, cmos, "自动调用CMos执行付款")
+
+' --- Path 3: Vantage (独立支付) ---
+Rel(assessor, vantage, "处理MFC理赔")
+Rel(assessor, avsr, "为MFC案件手动验证银行账户") ' AVSR is only used here
+Rel(approver, vantage, "在Vantage中授权付款")
+
+
+' --- 4. 调查支撑系统 (所有流程均可能使用) ---
+Rel(assessor, csm, "查询客户/保单信息")
+Rel(assessor, qcs, "使用QCS检查重复档案/错误")
+
+' --- 5. 最终收款说明 ---
+note right of customer
+  <b>赔款流向:</b>
+  客户最终通过其个人
+  <b>银行账户</b>接收赔款。
+end note
+@enduml

@@ -1,0 +1,97 @@
+@startuml
+' --- Diagram Settings ---
+!theme plain
+title Insurance Contract Entity Relationship Diagram
+
+
+' --- Actor/Party Entities with Attributes ---
+entity "<b>保险公司 (Insurer)</b>" as Insurer {
+  + 公司名称 (Company Name)
+}
+
+entity "<b>投保人 (Policyholder)</b>" as Policyholder {
+  + 姓名 (Name)
+  + 证件号 (ID Number)
+  + 地址 (Address)
+  + 联系方式 (Contact Info)
+}
+
+entity "<b>被保险人 (Insured Person)</b>" as InsuredPerson {
+  + 姓名 (Name)
+  + 证件号 (ID Number)
+  --
+  <i>与投保人关系 (Relationship)</i>
+}
+
+entity "<b>受益人 (Beneficiary)</b>" as Beneficiary {
+  + 姓名 (Name)
+  --
+  <i>领取顺序/份额 (Order/Share)</i>
+}
+
+' --- Core Contract Entity with Attributes ---
+entity "<b>保险合同 (Insurance Contract)</b>" as Contract {
+  + 合同号 (Contract ID)
+  --
+  保险责任 (Liability)
+  保险期间 (Period)
+  保险金额 (Sum Insured)
+  保险费 (Premium)
+  订立日期 (Effective Date)
+  合同状态 (Status)
+}
+
+' --- Document Entities with Attributes ---
+entity "<b>投保单 (Application Form)</b>" as ApplicationForm {
+  <i>作为合同成立的"要约"</i>
+  --
+  投保人/被保险人信息
+  申请的保险内容
+}
+
+entity "<b>暂保单 (Cover Note)</b>" as CoverNote {
+  <i>临时保险凭证</i>
+  --
+  保障范围和期间
+}
+
+entity "<b>保险单 (Policy Document)</b>" as PolicyDocument {
+  <i>合同的正式书面证明</i>
+  --
+  记录合同各方权利义务
+}
+
+entity "<b>保险凭证 (Insurance Certificate)</b>" as Certificate {
+  <i>保险单的简化形式</i>
+  --
+  与保险单具同等法律效力
+}
+
+' --- Process Entities with Attributes ---
+entity "<b>批单 (Endorsement)</b>" as Endorsement {
+  + 批单号 (Endorsement ID)
+  --
+  变更内容 (Modification Content)
+  批注日期 (Endorsement Date)
+}
+
+
+
+
+' --- Relationships Definition ---
+
+' Core Relationships
+Insurer ||--o{ Contract : 签发 (Issues)
+Policyholder ||--o{ Contract : "申请/持有 (Applies for/Owns)"
+Contract }o--o{ InsuredPerson : 保障 (Covers)
+Contract }o--o{ Beneficiary : 指定 (Designates)
+
+' Document Lifecycle Relationships
+ApplicationForm ||..r.> Contract : 发起 (Initiates)
+CoverNote ||..r.> Contract : "提供临时保障 (Provides temporary cover for)"
+Contract ||--|| PolicyDocument : "由...正式体现 (Is formalized by)"
+PolicyDocument <..> Certificate : "可由...证明 (Can be represented by)"
+
+' Process Relationships
+Contract ||--o{ Endorsement : "被...修订 (Is amended by)"
+@enduml
