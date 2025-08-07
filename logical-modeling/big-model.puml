@@ -1,0 +1,155 @@
+@startuml
+title "保险理赔逻辑模型 (V6.0 - 添加案例管理)"
+hide empty members
+
+' --- 合约包 ---
+package "合约上下文" {
+  entity "合约持有人 (ContractHolder)" as contract_holder {
+    * HolderID: UUID <<PK>>
+    --
+    Name: text
+  }
+
+  entity "合约 (Contract)" as contract {
+    * ContractID: UUID <<PK>>
+    --
+    # HolderID: UUID <<FK>>
+  }
+
+  contract_holder ||--o{ contract : "持有"
+}
+
+' --- 保单包 ---
+package "保单上下文" {
+  entity "投保人 (Policyholder)" as policyholder {
+    * PolicyholderID: UUID <<PK>>
+    --
+    Name: text
+  }
+
+  entity "被保险人 (Insured)" as insured {
+    * InsuredID: UUID <<PK>>
+    --
+    Name: text
+    IDNumber: text
+  }
+
+  entity "受益人 (Beneficiary)" as beneficiary {
+    * BeneficiaryID: UUID <<PK>>
+    --
+    Name: text
+    IDNumber: text
+    PayoutPercentage: float
+    BeneficiaryType: text
+  }
+
+  entity "保单 (Policy)" as policy {
+    * PolicyNumber: Varchar <<PK>>
+    --
+    # ContractID: UUID <<FK>>
+    # PolicyholderID: UUID <<FK>>
+    # InsuredID: UUID <<FK>>
+    # BeneficiaryID: UUID <<FK>>
+  }
+
+  policyholder ||--o{ policy : "投保"
+  insured ||--o{ policy : "被保障"
+  beneficiary ||--o{ policy : "受益"
+}
+
+' --- 理赔包 ---
+package "理赔上下文" {
+  entity "理赔 (Claim)" as claim {
+    * ClaimID: UUID <<PK>>
+    --
+    # PolicyNumber: Varchar <<FK>>
+    DeceasedInsuredName: text
+    PayeeBeneficiaryName: text
+    --
+    serviceRequestId: text
+    Status: String
+    CauseOfDeath: String
+  }
+
+  entity "文档 (Document)" as document {
+    * DocumentID: UUID <<PK>>
+    --
+    # ClaimID: UUID <<FK>>
+    DocumentType: text
+  }
+
+  claim ||--o{ document : "需要"
+}
+
+' --- 案例管理包 ---
+package "案例管理上下文" {
+  entity "发起人 (Initiator)" as initiator {
+    * InitiatorID: UUID <<PK>>
+    --
+    Name: text
+    Phone: text
+    Email: text
+    Relationship: text
+    note: "投保人/受益人/家属等"
+  }
+
+  entity "内部员工 (Employee)" as employee {
+    * EmployeeID: UUID <<PK>>
+    --
+    Name: text
+    Email: text
+    Department: text
+    Role: text
+    note: "保险公司员工"
+  }
+
+  entity "案例 (Case)" as case <<abstract>> {
+    * CaseID: UUID <<PK>>
+    --
+    # InitiatorID: UUID <<FK>>
+    # CurrentOwnerID: UUID <<FK>>
+    --
+    CaseNumber: text
+    Status: text
+    Priority: text
+    CreatedAt: datetime
+    UpdatedAt: datetime
+    Description: text
+  }
+
+  entity "理赔案例 (ClaimCase)" as claim_case {
+    * CaseID: UUID <<PK>>
+    --
+    # ClaimID: UUID <<FK>>
+    --
+    ClaimType: text
+    EstimatedAmount: decimal
+    ActualAmount: decimal
+  }
+
+  entity "案例历史 (CaseHistory)" as case_history {
+    * HistoryID: UUID <<PK>>
+    --
+    # CaseID: UUID <<FK>>
+    # OperatorID: UUID <<FK>>
+    --
+    Action: text
+    FromStatus: text
+    ToStatus: text
+    Comment: text
+    Timestamp: datetime
+  }
+
+  initiator ||--o{ case : "发起申请"
+  employee ||--o{ case : "当前负责"
+  case ||--o{ case_history : "记录"
+  case <|-- claim_case : "实现"
+  employee ||--o{ case_history : "操作处理"
+}
+
+' --- 包间关系 ---
+contract ||--o{ policy : "生成"
+policy ||--o{ claim : "产生"
+claim ||--|| claim_case : "对应"
+
+@enduml

@@ -1,0 +1,67 @@
+@startuml
+title Domain Model for Insurance Contract Establishment
+
+' Define Core Classes
+class Applicant {
+  - name: String
+  - idNumber: String
+  - contactInfo: String
+  + fillOutApplication()
+  + payPremium()
+}
+
+class Insured {
+  - name: String
+  - idNumber: String
+  - healthStatus: String
+  - relationshipToApplicant: String
+}
+
+class Beneficiary {
+  - name: String
+  - idNumber: String
+  - benefitOrder: Integer
+  - benefitShare: Percentage
+  - relationshipToInsured: String
+}
+
+class Insurer {
+  - companyName: String
+  + reviewApplication()
+  + underwrite()
+  + issuePolicy()
+}
+
+class Application {
+  - applicationId: String
+  - applicationDate: Date
+  - declarations: String[]
+  + submit()
+}
+
+class InsurancePolicy {
+  - policyNumber: String
+  - effectiveDate: Date
+  - policyTerm: String
+  - coverageDetails: String
+  - premium: Money
+  - sumInsured: Money
+}
+
+' Define Relationships
+Applicant "1" -- "1..*" Application : "fills out"
+Insurer "1" -- "1..*" Application : "receives & reviews"
+Application "1" -- "1" InsurancePolicy : "results in"
+InsurancePolicy "1" -- "1" Applicant : "is owned by"
+InsurancePolicy "1" -- "1..*" Insured : "covers"
+InsurancePolicy "1" -- "1..*" Beneficiary : "designates"
+Insurer "1" -- "1..*" InsurancePolicy : "issues"
+
+' Notes
+note "The Application is a written offer from the Applicant to the Insurer to enter into a contract.\nUpon approval, the Insurer's issuance of the policy constitutes acceptance." as N1
+Application .. N1
+
+note "The Applicant and the Insured can be the same person." as N2
+Applicant .. N2
+Insured .. N2
+@enduml

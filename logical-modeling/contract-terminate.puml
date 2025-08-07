@@ -1,0 +1,85 @@
+@startuml
+title 保险合同终止阶段领域模型 (UML Class Diagram)
+
+' 复用对象
+class InsurancePolicy {
+  + policyNumber: String
+  - status: PolicyStatus
+  + terminate(event)
+}
+
+' 终止流程核心对象
+abstract class TerminationEvent {
+  # eventId: String
+  # terminationDate: Date
+  # reasonText: String
+  + process()
+}
+
+' 具体的终止原因 (一级子类)
+class ExpirationEvent extends TerminationEvent {
+  ' 期间届满
+}
+class FulfillmentEvent extends TerminationEvent {
+  ' 履行完毕
+}
+class MutualAgreementEvent extends TerminationEvent {
+  ' 协商解除
+}
+class InvalidationEvent extends TerminationEvent {
+  ' 合同无效
+}
+
+' “合同解除”作为一个可再分的抽象类
+abstract class RescissionEvent extends TerminationEvent {
+  ' 法定/约定解除
+}
+
+' “合同解除”的二级子类
+class ApplicantRescissionEvent extends RescissionEvent {
+  ' 投保人解除
+  - isWithinCoolingOff: Boolean ' 是否在犹豫期内
+  - cashValueToRefund: Money ' 应退还的现金价值
+  - premiumToRefund: Money ' 应退还的保费
+}
+class InsurerRescissionEvent extends RescissionEvent {
+  ' 保险人解除
+  - cause: RescissionCause ' 解除原因
+  - isIncontestable: Boolean ' 是否已过不可抗辩期
+}
+enum RescissionCause {
+  NON_DISCLOSURE ' 未如实告知
+  NON_PAYMENT ' 未缴纳保费
+  FRAUD ' 欺诈
+}
+
+
+' 定义关系
+InsurancePolicy "1" -- "1" TerminationEvent : "因...而终止 (is terminated by)"
+
+
+' 备注
+note top of TerminationEvent
+  这是一个抽象基类，代表合同终止这一行为。
+  所有具体的终止原因都继承自它。
+end note
+
+note right of RescissionEvent
+  “合同解除”是“合同终止”的一种，但其内部逻辑复杂，
+  因此也设计为抽象类，进一步区分解除主体。
+end note
+
+note right of ApplicantRescissionEvent
+  此类封装了投保人解除合同的逻辑。
+  根据'isWithinCoolingOff'属性的值，
+  决定是退还全部保费还是现金价值，
+  这直接对应了书中的描述。
+end note
+
+note right of InsurerRescissionEvent
+  此类封装了保险人解除合同的逻辑。
+  处理时需检查原因(cause)以及是否已过
+  两年不可抗辩期('isIncontestable')，
+  这些都是书中强调的核心业务规则。
+end note
+@enduml

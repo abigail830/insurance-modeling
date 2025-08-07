@@ -1,0 +1,77 @@
+@startuml
+title 保险合同履行与理赔阶段领域模型 (UML Class Diagram)
+
+' 复用上一阶段的类
+class InsurancePolicy {
+  + policyNumber: String
+}
+class Insurer {
+  + companyName: String
+  + 审核理赔()
+  + 调查核实()
+  + 做出理赔决定()
+}
+class Claimant {
+  ' 索赔人可以是投保人、被保险人或受益人
+  + name: String
+  + contactInfo: String
+  + relationshipToInsured: String
+}
+
+' 理赔阶段的核心类
+class Claim {
+  - claimId: String
+  - status: ClaimStatus
+  - submissionDate: Date
+  - incidentDate: Date
+  + 提交申请()
+  + 补充材料()
+}
+
+class InsuredEvent {
+  - eventDate: Date
+  - description: String
+  - location: String
+}
+
+class ClaimDocument {
+  - documentId: String
+  - documentType: String '如: 诊断证明, 事故报告
+  - content: File
+}
+
+class ClaimDecision {
+  - decisionDate: Date
+  - isApproved: Boolean
+  - settlementAmount: Money
+  - denialReason: String
+}
+
+enum ClaimStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  ADDITIONAL_INFO_REQUIRED
+  APPROVED
+  DENIED
+}
+
+
+' 定义关系
+Claim "1" -- "1" InsurancePolicy : "基于 (is against)"
+Claim "1" -- "1" InsuredEvent : "源于 (is for)"
+Claim "1" -- "1" Claimant : "由...提出 (is filed by)"
+Insurer "1" -- "1..*" Claim : "处理 (processes)"
+
+Claim "1" *-- "1..*" ClaimDocument : "包含 (consists of)"
+Claim "1" -- "1" ClaimDecision : "产生 (results in)"
+Insurer "1" -- "1" ClaimDecision : "做出 (makes)"
+
+' 备注
+note "一份理赔申请(Claim)必须\n针对一份有效的保险合同(InsurancePolicy)。" as N1
+Claim .. N1
+
+note "索赔人(Claimant)的身份\n需要根据保险合同进行验证\n(例如，必须是合同中指定的\n被保险人或受益人)。" as N2
+Claimant .. N2
+InsurancePolicy .. N2
+
+@enduml

@@ -1,0 +1,76 @@
+@startuml
+title 保险合同变更阶段领域模型 (UML Class Diagram)
+
+' 复用对象
+class InsurancePolicy {
+  + policyNumber: String
+}
+class Insurer {
+  + companyName: String
+  + reviewChangeRequest(request)
+  + issueEndorsement(request)
+}
+class Applicant {
+  + name: String
+  + requestChange(request)
+}
+
+' 变更流程核心对象
+abstract class ChangeRequest {
+  # requestId: String
+  # requestDate: Date
+  # status: RequestStatus
+  # reason: String
+  + submit()
+}
+enum RequestStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+class Endorsement {
+  - endorsementId: String
+  - effectiveDate: Date
+  - descriptionOfChange: String
+  - premiumAdjustment: Money
+}
+
+' 具体的变更类型 (利用继承)
+class BeneficiaryChangeRequest {
+  + newBeneficiaries: Beneficiary[]
+}
+class SumInsuredChangeRequest {
+  + newSumInsured: Money
+}
+class AddressChangeRequest {
+  + newAddress: String
+}
+' 可以根据截图内容继续扩展其他变更类型
+' class ApplicantChangeRequest extends ChangeRequest { ... }
+
+
+' 定义关系
+InsurancePolicy "1" -- "0..*" ChangeRequest : "发生 (undergoes)"
+Applicant "1" -- "1..*" ChangeRequest : "提出 (initiates)"
+Insurer "1" -- "1..*" ChangeRequest : "审核 (reviews)"
+
+ChangeRequest "1" -- "0..1" Endorsement : "批准后生成 (results in)"
+InsurancePolicy "1" -- "0..*" Endorsement : "包含 (is amended by)"
+
+' 继承关系
+ChangeRequest <|-- BeneficiaryChangeRequest
+ChangeRequest <|-- SumInsuredChangeRequest
+ChangeRequest <|-- AddressChangeRequest
+
+
+' 备注
+note top of ChangeRequest : 这是一个抽象基类，定义了所有变更申请的通用属性和行为。\n具体变更内容由其子类定义。
+
+note "只有状态为'APPROVED'的申请\n才会生成批单。" as N1
+ChangeRequest .. N1
+N1 .. Endorsement
+
+note right of BeneficiaryChangeRequest : 根据《保险法》，受益人变更\n通常只需通知保险人即可，\n无需其同意。模型在实现时\n需要处理这种特殊业务规则。
+
+@enduml
