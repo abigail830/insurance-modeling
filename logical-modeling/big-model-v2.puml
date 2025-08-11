@@ -1,0 +1,223 @@
+@startuml
+!theme plain
+title 全景保险核心业务统一领域模型 (Integrated Core Insurance Business Domain Model)
+
+skinparam package {
+  borderColor #666666
+  borderThickness 2
+  backgroundColor #F7F7F7
+}
+skinparam class {
+  borderColor #333333
+  arrowColor #333333
+}
+skinparam note {
+  backgroundColor #FFFFE0
+  borderColor #BDBB7D
+}
+
+' =========================================
+' 1. 核心领域模型 (Core Domain)
+' 包含所有上下文中共享的、稳定的核心实体。
+' =========================================
+package "核心领域模型 (Core Domain: Parties & Contract)" <<Cloud>> {
+  entity "<b>保险合同 (InsuranceContract)</b>" as Contract {
+    + 合同号 (PolicyNumber): String
+    --
+    - 合同状态 (Status): PolicyStatus
+    - 生效日期 (EffectiveDate): Date
+    - 保险期间 (Term): String
+    - 保险责任 (Coverage): String
+    - 保险费 (Premium): Money
+    - 保险金额 (SumInsured): Money
+    --
+    ' 核心业务操作
+    + amend(Endorsement)
+    + terminate(TerminationEvent)
+    + processClaim(Claim)
+  }
+
+  entity "<b>保险公司 (Insurer)</b>" as Insurer {
+    + 公司名称 (CompanyName): String
+  }
+
+  entity "<b>投保人 (Policyholder)</b>" as Policyholder {
+    + 姓名 (Name): String
+    + 证件号 (IDNumber): String
+  }
+
+  entity "<b>被保险人 (Insured)</b>" as Insured {
+    + 姓名 (Name): String
+    + 与投保人关系 (RelationshipToPolicyholder): String
+  }
+
+  entity "<b>受益人 (Beneficiary)</b>" as Beneficiary {
+    + 姓名 (Name): String
+    + 领取顺序/份额 (Order/Share): String
+  }
+
+  ' 核心关系
+  Insurer ||--o{ Contract : "签发 (issues)"
+  Policyholder ||--o{ Contract : "持有 (owns)"
+  Contract }o--o{ Insured : "保障 (covers)"
+  Contract }o--o{ Beneficiary : "指定 (designates)"
+
+  note "投保人和被保险人可以是同一个人。" as N_SamePerson
+  Policyholder .. N_SamePerson
+  Insured .. N_SamePerson
+}
+
+' =========================================
+' 2. 合同订立上下文 (Establishment Context)
+' 描述合同如何从无到有被创建出来。
+' =========================================
+package "合同订立上下文 (Establishment Context)" <<Node>> {
+  class Applicant {
+    - name: String
+    - idNumber: String
+    + fillOutApplication()
+    + payPremium()
+  }
+
+  class Application {
+    - applicationId: String
+    - applicationDate: Date
+    + submit()
+  }
+
+  entity "<b>保险单 (Policy Document)</b>" as PolicyDocument {
+    <i>合同的正式书面证明</i>
+  }
+
+  ' 订立流程关系
+  Applicant "1" -- "1..*" Application : "填写 (fills out)"
+  Insurer ..> Application : "审核 (reviews)" (cross-context)
+
+  note "投保申请人(Applicant)在合同成功订立后，\n其角色就演变为投保人(Policyholder)。" as N_ApplicantRole
+  Applicant .[#blue].> Policyholder : "成功后成为\n(becomes)"
+  N_ApplicantRole .l. Applicant
+}
+
+
+' =========================================
+' 3. 合同变更上下文 (Amendment Context)
+' 描述已有合同如何被修改。
+' =========================================
+package "合同变更上下文 (Amendment Context)" <<Node>> {
+  abstract class ChangeRequest {
+    # requestId: String
+    # requestDate: Date
+    # status: RequestStatus
+  }
+
+  class "受益人变更" as BeneficiaryChangeRequest extends ChangeRequest
+  class "保额变更" as SumInsuredChangeRequest extends ChangeRequest
+  class "地址变更" as AddressChangeRequest extends ChangeRequest
+
+  entity "<b>批单 (Endorsement)</b>" as Endorsement {
+    + 批单号 (EndorsementID)
+    --
+    变更内容 (Modification Content)
+    批注日期 (Endorsement Date)
+  }
+
+  ' 变更流程关系
+  Policyholder ..> ChangeRequest : "提出 (initiates)" (cross-context)
+  Insurer ..> ChangeRequest : "审核 (reviews)" (cross-context)
+
+  note "只有状态为'APPROVED'的申请\n才会生成批单。" as N_Approval
+  ChangeRequest "1" ..> "0..1" Endorsement : "批准后生成"
+  N_Approval .r. Endorsement
+}
+
+
+' =========================================
+' 4. 合同理赔上下文 (Claim Context)
+' 描述保险责任如何被履行。
+' =========================================
+package "合同理赔上下文 (Claim Context)" <<Node>> {
+  class Claimant {
+    + name: String
+    + relationshipToInsured: String
+  }
+
+  class Claim {
+    - claimId: String
+    - status: ClaimStatus
+    - submissionDate: Date
+  }
+
+  class InsuredEvent {
+    - eventDate: Date
+    - description: String
+  }
+
+  class ClaimDecision {
+    - isApproved: Boolean
+    - settlementAmount: Money
+  }
+
+  ' 理赔流程关系
+  Claim "1" -- "1" InsuredEvent : "源于 (is for)"
+  Claim "1" -- "1" Claimant : "由...提出 (is filed by)"
+  Claim "1" -- "1" ClaimDecision : "产生 (results in)"
+  Insurer ..> Claim : "处理 (processes)" (cross-context)
+
+  note "索赔人(Claimant)是一个角色，可以是\n核心域中的投保人、被保险人或受益人。" as N_ClaimantRole
+  Policyholder .[#blue].|> Claimant : "可以是 (Can be a)"
+  Insured .[#blue].|> Claimant : "可以是 (Can be a)"
+  Beneficiary .[#blue].|> Claimant : "可以是 (Can be a)"
+  N_ClaimantRole .r. Claimant
+}
+
+
+' =========================================
+' 5. 合同终止上下文 (Termination Context)
+' 描述合同如何结束。
+' =========================================
+package "合同终止上下文 (Termination Context)" <<Node>> {
+  abstract class TerminationEvent {
+    # eventId: String
+    # terminationDate: Date
+    # reasonText: String
+  }
+  class ExpirationEvent extends TerminationEvent
+  class FulfillmentEvent extends TerminationEvent
+  class MutualAgreementEvent extends TerminationEvent
+  abstract class RescissionEvent extends TerminationEvent
+  class ApplicantRescissionEvent extends RescissionEvent
+  class InsurerRescissionEvent extends RescissionEvent
+
+  note right of ExpirationEvent : 期间届满
+  note right of FulfillmentEvent : 履行完毕
+  note right of MutualAgreementEvent : 协商解除
+  note right of RescissionEvent : 合同解除
+  note right of ApplicantRescissionEvent : 投保人解除
+  note right of InsurerRescissionEvent : 保险人解除
+
+  note right of RescissionEvent
+    “合同解除”是“终止”的一种特殊情况，
+    其内部逻辑更复杂，因此也作为抽象。
+  end note
+}
+
+
+' =========================================
+' 跨上下文关系 (Cross-Context Relationships)
+' 定义各个流程上下文如何与核心合同实体交互
+' =========================================
+' 订立 -> 核心
+Application ..> Contract : "成功后生成 (results in)"
+Contract ..> PolicyDocument : "由...正式体现 (Is formalized by)"
+
+' 变更 -> 核心
+Contract "1" -- "0..*" Endorsement : "被...修订 (Is amended by)"
+
+' 理赔 -> 核心
+Claim ..> Contract : "基于...提出 (is against)"
+
+' 终止 -> 核心
+Contract "1" -- "1" TerminationEvent : "因...而终止 (is terminated by)"
+
+
+@enduml

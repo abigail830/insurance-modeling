@@ -1,0 +1,91 @@
+@startuml
+!theme plain
+title "Insurance Core Business Panoramic Model (Final Revised Version)"
+
+skinparam actorStyle awesome
+skinparam package {
+  borderColor #52799C
+  borderThickness 2
+  backgroundColor #Azure
+}
+skinparam class {
+  backgroundColor #White
+  borderColor #333333
+  arrowColor #333333
+}
+skinparam abstract {
+  backgroundColor #FFFACD
+}
+skinparam arrow {
+  thickness 1.5
+}
+
+' =========================================
+' 1. Central Actors & Contract
+' =========================================
+' V-- The definitive fix is here: defining actors as classes with a stereotype. --V
+class "Policyholder" as Policyholder <<actor>>
+class "Insured" as Insured <<actor>>
+class "Beneficiary" as Beneficiary <<actor>>
+class "Insurance Company" as Insurer <<actor>>
+
+class "<b>Insurance Contract</b>" as Contract #LightSkyBlue {
+  + Contract Number
+  --
+  Contract Status
+}
+
+' Core static relationships
+Contract --> Insured : "Provides Coverage"
+Contract --> Beneficiary : "Designates Beneficiary"
+Policyholder --> Contract : "Holds"
+Insurer --> Contract : "Issues"
+
+
+' =========================================
+' 2. Business Lifecycle Contexts
+' =========================================
+
+' --- Contract Establishment ---
+package "Contract Establishment" {
+  class Application as "Application"
+
+  Policyholder -> Application : "Fills out"
+  Application -> Insurer : "Submits for review"
+  Application ..> Contract : "Generates upon success"
+}
+
+' --- Contract Amendment ---
+package "Contract Amendment" {
+  abstract class ChangeRequest as "Change Request"
+  class Endorsement as "Endorsement"
+
+  Policyholder -> ChangeRequest : "Submits"
+  ChangeRequest -> Insurer : "Submits for review"
+  ChangeRequest ..> Endorsement : "Generates upon approval"
+  Endorsement ..> Contract : "Amends"
+}
+
+' --- Contract Claim ---
+package "Contract Claim" {
+  class Claim as "Claim"
+  class InsuredEvent as "Insured Event"
+  class ClaimDecision as "Claim Decision"
+
+  ' Claimant can be beneficiary, insured, or policyholder
+  Beneficiary -> Claim : "Files"
+  Claim -> InsuredEvent : "Originates from"
+  Claim -> Insurer : "Submits for review"
+  Claim ..> ClaimDecision : "Results in"
+}
+
+' --- Contract Termination ---
+package "Contract Termination" {
+  abstract class TerminationEvent as "Termination Event"
+  class ExpirationEvent as "Expiration" extends TerminationEvent
+  class RescissionEvent as "Contract Rescission" extends TerminationEvent
+
+  Contract ..> TerminationEvent : "Terminates due to"
+}
+
+@enduml
