@@ -1,0 +1,141 @@
+@startuml
+title (精炼后)保险合同履行与理赔阶段领域模型 (UML Class Diagram)
+
+' --- 核心对象与角色 ---
+class InsurancePolicy {
+  + policyNumber: String
+}
+class Claimant {
+  ' 索赔人
+  + name: String
+}
+class Insurer {
+  + companyName: String
+  + assignAdjusterToClaim(claim)
+}
+class ClaimsAdjuster {
+  ' 理赔人员 (新增)
+  + adjusterId: String
+  + name: String
+  + investigate()
+  + calculateSettlement()
+}
+
+' --- 流程与工件对象 ---
+class Notification {
+  ' 报案 (新增)
+  + notificationId: String
+  + notifierName: String ' 报案人
+  + notificationDate: Date
+  + incidentSummary: String
+}
+class Claim {
+  ' 理赔申请 (核心)
+  - claimId: String
+  - status: ClaimStatus
+  - submissionDate: Date
+}
+class ClaimDecision {
+  ' 理赔决定
+  - decisionDate: Date
+  - isApproved: Boolean
+  - settlementAmount: Money
+}
+class ClaimFile {
+  ' 理赔档案 (新增)
+  - fileId: String
+  - closeDate: Date
+  ' 档案中包含了所有相关文档和决定
+}
+
+' --- 丰富化的文档体系 ---
+abstract class ClaimDocument {
+  ' 索赔材料 (抽象基类)
+  # documentId: String
+  # documentType: String
+}
+class ClaimApplicationForm {
+  ' 索赔申请书
+}
+' 按材料性质分类 (新增抽象子类)
+abstract class IdentityProof {
+}
+abstract class EventProof {
+}
+abstract class ExpenseProof {
+}
+
+' 具体的材料类型 (新增具体子类)
+class IDCardCopy {
+  ' 身份证复印件
+}
+class HouseholdRegister {
+  ' 户口簿
+}
+
+class MedicalDeathCertificate {
+  ' 医学死亡证明
+}
+class PoliceReport {
+  ' 警方报告
+}
+class AccidentLiabilityReport {
+  ' 交通事故责任认定书
+}
+class DisabilityReport {
+  ' 伤残鉴定书
+}
+
+class MedicalInvoice {
+  ' 医疗费用发票
+}
+
+
+' --- 关系定义 ---
+' 流程关系
+Notification "1" --> "1" Claim : "发起 (initiates)"
+Insurer "1" -- "1..*" ClaimsAdjuster : "雇佣 (employs)"
+Claim "1" -- "1" ClaimsAdjuster : "被分配给 (is assigned to)"
+Claim "1" -- "1" Claimant : "由...提出 (is filed by)"
+Claim "1" -- "1" InsurancePolicy : "基于 (is against)"
+
+' 组合与结果关系
+Claim "1" *-- "1..*" ClaimDocument : "包含 (consists of)"
+Claim "1" -- "1" ClaimDecision : "产生 (results in)"
+ClaimDecision ..> ClaimFile : "归档为 (is archived into)"
+
+' 继承关系
+ClaimDocument <|-- ClaimApplicationForm
+ClaimDocument <|-- IdentityProof
+ClaimDocument <|-- EventProof
+ClaimDocument <|-- ExpenseProof
+
+IdentityProof <|-- IDCardCopy
+IdentityProof <|-- HouseholdRegister
+
+EventProof <|-- MedicalDeathCertificate
+EventProof <|-- PoliceReport
+EventProof <|-- AccidentLiabilityReport
+EventProof <|-- DisabilityReport
+
+ExpenseProof <|-- MedicalInvoice
+
+' --- 备注 ---
+note top of Notification
+  **新增对象：** 将“报案”作为一个独立的
+  环节，与正式的“索赔申请”区分开，
+  这更符合书中描述的流程。
+end note
+
+note right of ClaimsAdjuster
+  **新增角色：** 明确了“理赔人员”这一
+  具体负责理赔案件的角色。
+end note
+
+note bottom of ClaimDocument
+  **核心精炼：** 极大地丰富了索赔材料体系。
+  使用继承将材料分为身份证明、事故证明等
+  类别，并具体到“死亡证明”、“伤残鉴定书”等
+  在第234页列出的具体文档类型。
+end note
+@enduml

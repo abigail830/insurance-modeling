@@ -1,0 +1,141 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+LAYOUT_WITH_LEGEND()
+!define DIRECTION top to bottom direction
+
+title Application Architecture for Insurance Claims Processing (Consolidated)
+
+' Actors
+Person_Ext(customer, "Customer", "End users of insurance products or services")
+Person_Ext(partner, "Partner", "Banks, agencies, etc.")
+Person_Ext(agent, "Agent", "Individuals or entities selling products and providing services on behalf of the insurance company")
+Person(cs_staff, "Customer Service Staff", "Staff handling customer inquiries and claims applications")
+Person(authoriser_staff, "Authoriser Staff", "Staff responsible for document verification and authorization approval")
+Person(assessor_staff, "Assessor Staff", "Claims specialists responsible for case review, investigation and assignment")
+Person_Ext(advisor_staff, "Advisor", "External advisors providing professional consultation and advice")
+Person(branch_staff, "Branch Staff", "Branch office staff handling branch business operations")
+
+
+' Insurance Core Systems
+System_Boundary(insurance_core, "Insurance Core Systems") {
+    System(bancs, "BanCs System", "Insurance core system for OMP products")
+'    System(vintage, "Vantage System", "Insurance core system for non-OMP products")
+'    System(omega, "Omega", "Insurance core system - MainFrame based, for PF (high net worth) policy system")
+'    System(flexcube, "FlexCube", "Insurance core system for Wealth customer segment")
+}
+
+' Workflow Management Systems
+System_Boundary(workflow_management, "Workflow Management Systems") {
+    System(bizagi, "Bizagi System", "Central workflow and task engine for claims process orchestration")
+}
+
+' Central Money Systems
+System_Boundary(central_money, "Central Money Systems") {
+    System(cmost, "CMos (Central Money System)", "Central financial system for all money inflows (receipts) and outflows (payments)")
+}
+
+' External Systems & Channels
+System_Boundary(external_channels, "External Channels") {
+    System(web, "Web Portal", "Official website for customer self-service")
+    System(whatsapp, "WhatsApp", "Automated chatbot for online communication")
+    System(app, "APP", "Customer mobile application")
+    System(dae, "DAE (Advisor Frontend)", "Digital advisory platform for external advisors")
+    System(open_system, "Open System", "External systems used by partners to integrate with insurance company systems")
+}
+
+
+' Internal Systems
+System_Boundary(internal_systems, "Internal Staff Channels") {
+    System(uaw, "UAW", "Unified Agent WorkBench for claims creation and customer service")
+    System(bizagi_authoriser, "Bizagi Retail", "Bizagi-based workstation for authorization and document approval")
+    System(bizagi_assessor, "Bizagi PaaS", "Bizagi-based workstation for claims assessment and investigation")
+    System(summit, "Summit", "Submission channel for Branch")
+}
+
+' Customer Information Systems
+System_Boundary(customer_info_systems, "Customer Info") {
+    System(gcs, "GCS (Group Client System)", "Main customer information system storing personal info and product portfolios")
+    System(tamr, "TAMR", "Alternative system to GCS")
+}
+
+' Bank Account Verification Systems
+System_Boundary(bank_verification, "Bank Account Verification") {
+    System(avsr, "AVSR", "Bank account verification system")
+}
+
+' Business Document Storage Systems
+System_Boundary(business_document_systems, "Business Document Management") {
+    System(carma_ux, "CaRMa UX", "Business document storage frontend for user interaction and document display")
+    System(carma_core, "CaRMa Core", "Business document storage backend for policy docs, product components and asset library")
+}
+
+' RPA Systems
+System_Boundary(rpa_systems, "RPA Automation") {
+    System(rpa_queue, "RPA Integration Queue", "RPA task queue receiving automation requests from Bizagi")
+    System(blue_prism, "Blue Prism RPA", "Enterprise RPA platform executing automated business processes")
+}
+
+' Other Downstream/Supporting Systems
+System_Ext(dha, "DHA", "External identity verification service")
+System(ecm, "ECM", "Enterprise content management system for QR Code storage and retrieval")
+
+
+' Relationships
+Rel(bizagi, dha, "Identity verification")
+' Customer/Partner -> Channels
+Rel(customer, web, "Submit claims")
+Rel(customer, whatsapp, "Submit claims")
+Rel(customer, app, "Submit claims")
+Rel(partner, open_system, "Submit data")
+Rel(branch_staff, summit, "Submit claims")
+Rel(advisor_staff, dae, "Use advisor system")
+
+
+' Channels -> Core System (Bizagi as entry point)
+Rel(web, bizagi, "Send claims data")
+Rel(whatsapp, bizagi, "Send claims data")
+Rel(app, bizagi, "Send claims data")
+Rel(open_system, bizagi, "Send claims data")
+Rel(summit, bizagi, "Send claims data")
+Rel(dae, bizagi, "Advisory services")
+
+' Internal Staff -> Internal Systems
+Rel(cs_staff, uaw, "Use workstation")
+Rel(authoriser_staff, bizagi_authoriser, "Use workstation")
+Rel(assessor_staff, bizagi_assessor, "Use workstation")
+
+' Internal Systems -> Core Systems
+Rel(uaw, bizagi, "Initiate claims")
+Rel(bizagi_authoriser, bizagi, "Document authorization")
+Rel(bizagi_assessor, bizagi, "Claims assessment")
+Rel(summit, bizagi, "Branch operations")
+
+' Direct access for assessors to systems
+Rel_L(bizagi_assessor, bizagi, "Process claims")
+
+' Workflow Management Relationships
+Rel(bizagi, cmost, "Payment processing")
+Rel(bizagi, rpa_queue, "Trigger automation")
+Rel(bizagi, carma_core, "Store/query documents")
+Rel_L(carma_core, bizagi, "Provide document data")
+
+' Insurance Core Systems Relationships
+Rel(bizagi, bancs, "Task processing")
+
+' CaRMa Internal Relationships
+Rel_R(carma_ux, carma_core, "Frontend access")
+
+' RPA System Relationships
+Rel(rpa_queue, blue_prism, "Send RPA tasks")
+Rel_U(blue_prism, bancs, "Automate operations")
+
+' Customer Information Systems Relationships
+Rel(bizagi, gcs, "Query customer info")
+Rel(bizagi, tamr, "Query customer info")
+
+' Bank Account Verification Relationships
+Rel(bizagi, avsr, "Query account verification")
+
+Rel(carma_core, ecm, "Store/retrieve QR codes")
+@enduml

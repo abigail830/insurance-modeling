@@ -1,0 +1,113 @@
+@startuml
+title Refined Domain Model for Contract Establishment & Underwriting
+
+' --- Existing Core Classes (Slightly Adjusted) ---
+class Applicant {
+  + name: String
+}
+class Insured {
+  + name: String
+  ' A dedicated object now holds detailed risk factors
+}
+class Application {
+  + applicationId: String
+  + applicationDate: Date
+}
+class Insurer {
+  + companyName: String
+  ' The main action is to initiate a case, not just "underwrite"
+  + createUnderwritingCase(application)
+}
+class InsurancePolicy {
+  + policyNumber: String
+  + effectiveDate: Date
+  + premium: Money
+}
+
+' --- NEW: Detailed Underwriting & Risk Assessment Objects ---
+' This new class represents the entire case for one application
+class UnderwritingCase {
+  + caseId: String
+  + status: String
+}
+' A dedicated class for the risk profile of the insured
+class RiskProfile {
+  + occupation: String
+  + healthStatus: String
+  + lifestyleHabits: String[]
+  + familyMedicalHistory: String
+  + financialStatus: String
+}
+' A dedicated class for the outcome, as per the flowchart
+class UnderwritingDecision {
+  + decisionType: DecisionType
+  + effectiveDate: Date
+  + premiumLoading: Money ' For "Conditional Acceptance"
+  + exclusions: String[]   ' For "Conditional Acceptance"
+  + declineReason: String ' For "Decline"
+}
+enum DecisionType {
+  STANDARD_ACCEPTANCE
+  CONDITIONAL_ACCEPTANCE
+  DECLINE
+}
+' Base class for all supporting documents mentioned in the text
+abstract class UnderwritingDocument {
+  + documentId: String
+  + receivedDate: Date
+}
+' Specific document types
+class MedicalReport extends UnderwritingDocument {
+  ' 体检报告书
+  + findings: String
+}
+class AgentReport extends UnderwritingDocument {
+  ' 业务人员报告书
+  + observations: String
+}
+class InspectionReport extends UnderwritingDocument {
+  ' 生存调查报告书 (e.g., for life insurance)
+  + verificationDetails: String
+}
+
+
+' --- Relationships ---
+Applicant "1" -- "1..*" Application : "submits"
+' An Application now triggers a specific UnderwritingCase
+Application "1" -- "1" UnderwritingCase : "triggers"
+Insurer "1" -- "1..*" UnderwritingCase : "manages"
+
+' The case is the central hub
+UnderwritingCase "1" -- "1" RiskProfile : "assesses"
+UnderwritingCase "1" *-- "0..*" UnderwritingDocument : "is supported by"
+UnderwritingCase "1" -- "1" UnderwritingDecision : "results in"
+
+' An Insured person has a detailed risk profile
+Insured "1" -- "1" RiskProfile : "has"
+Application "1" -- "1..*" Insured : "proposes for"
+
+' A Policy is created ONLY from an approved decision
+UnderwritingDecision ..> InsurancePolicy : "creates upon approval"
+
+
+' --- Notes explaining the refinements ---
+note top of UnderwritingCase
+  **New Core Object:** This class models the underwriting process
+  as a manageable "case," which directly reflects the flowchart's
+  logic (Application Review, Risk Assessment -> Decision).
+end note
+
+note right of RiskProfile
+  **Detailed Risk Factors:** This class is added to explicitly
+  capture the risk factors (health, occupation, habits)
+  mentioned on page 221 of the book. It provides a
+  much richer model of the `Insured`.
+end note
+
+note bottom of UnderwritingDocument
+  **Explicit Document Types:** Instead of just being abstract "data,"
+  key documents like the Medical Report (`体检报告书`) and
+  Agent's Report (`业务人员报告书`) are now first-class
+  citizens in the model, as described on page 219.
+end note
+@enduml
