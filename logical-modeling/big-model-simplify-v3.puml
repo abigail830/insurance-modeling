@@ -4,7 +4,7 @@ title "保险业务端到端全景模型 (理赔角色修正版)"
 
 skinparam actorStyle awesome
 skinparam package {
-  borderColor #52799C
+  borderColor #000000
   borderThickness 2
 }
 skinparam arrow {
@@ -41,7 +41,7 @@ Beneficiary ..|> Claimant : "可以是"
 ' =========================================
 ' 1. 产品研发阶段 (Product Development)
 ' =========================================
-package "产品研发与管理 (Product Development)" #LightGreen {
+package "产品研发与管理 (Product Development)" #LightGrey {
   class "保险产品" as Product {
     + 产品代码
     + 产品名称
@@ -63,7 +63,7 @@ package "产品研发与管理 (Product Development)" #LightGreen {
 ' =========================================
 ' 2. 销售与分销阶段 (Sales & Distribution)
 ' =========================================
-package "销售与分销 (Sales & Distribution)" #LightYellow {
+package "销售与分销 (Sales & Distribution)" #LightGrey {
   class "销售计划/报价" as Proposal {
     + 建议书编号
     + 报价详情

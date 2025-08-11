@@ -1,0 +1,132 @@
+@startuml
+!theme plain
+title "保险业务端到端全景模型 (整合版)"
+
+' --- Global Styling ---
+skinparam actorStyle awesome
+skinparam package {
+  borderColor #000000
+  borderThickness 1
+}
+skinparam arrow {
+  thickness 1.5
+}
+skinparam class {
+  backgroundColor #White
+  borderColor #333333
+  arrowColor #333333
+}
+skinparam abstract {
+  backgroundColor #FFFACD
+}
+
+' =========================================
+' 0. 全局参与者 (Global Actors)
+' =========================================
+class "产品与精算团队" as ProductTeam <<actor>>
+class "销售渠道" as SalesChannel <<actor>>
+class "客户/投保人" as Policyholder <<actor>>
+class "被保险人" as Insured <<actor>>
+class "受益人" as Beneficiary <<actor>>
+class "保险公司" as Insurer <<actor>>
+
+
+' =========================================
+' 1. 售前阶段：产品研发与销售
+' =========================================
+package "产品研发与管理 (Product Development)" #LightGrey {
+  class "保险产品" as Product {
+    + 产品代码
+    + 产品名称
+  }
+  class "产品规格" as ProductSpec
+  class "定价与费率" as Pricing
+  ProductTeam -> Product : "设计与定义"
+  Product *-- "1" ProductSpec
+  Product *-- "1" Pricing
+}
+
+package "销售与分销 (Sales & Distribution)" #LightGrey {
+  class "销售计划/报价" as Proposal
+  SalesChannel -> Proposal : "生成"
+  Proposal -> Policyholder : "提供给"
+}
+
+
+' =========================================
+' 2. 售后阶段：合同履行 (权责模型)
+' =========================================
+package "合同履行：权责模型 (Contract Fulfillment: Rights & Obligations)" #Azure {
+
+    ' --- 核心契约 ---
+    class "<b>保险合同</b>" as Contract #LightBlue {
+      + 合同号
+      --
+      合同状态: PolicyStatus
+      ' (e.g., 有效, 宽限期, 失效)
+    }
+    Contract --> Insured : "提供保障"
+    Contract --> Beneficiary : "指定受益人"
+
+    ' --- 内部权责划分 ---
+    package "保险公司权责: 合同生命周期管理" #LightBlue {
+        package "承保" {
+            class Application as "投保单"
+        }
+        package "保全" {
+            abstract class ChangeRequest as "变更申请"
+            class Endorsement as "批单"
+        }
+        package "终止" {
+            abstract class TerminationEvent as "终止事件"
+            class LapseEvent as "保单失效事件" extends TerminationEvent
+        }
+    }
+
+    package "投保人义务: 保费缴纳" #LightBlue {
+        class PremiumNotice as "缴费通知"
+        class PaymentRecord as "缴费记录"
+    }
+
+    package "投保人权利: 事故理赔" #LightBlue {
+        class Claimant as "理赔申请人" <<actor>>
+        class Claim as "理赔申请"
+        class InsuredEvent as "保险事故"
+        class ClaimDecision as "理赔决定"
+    }
+}
+
+
+' =========================================
+' 3. 全局交互关系 (Global Interactions & Flow)
+' =========================================
+' --- 售前到售后的转化 ---
+Product -> SalesChannel : "授权销售"
+Proposal ..> Application : "接受后发起"
+Application ..> Contract : "成功后生成"
+Contract ..> Product : "是...的实例"
+
+' --- 合同履行内部交互 ---
+' 管理流程
+Policyholder -> Application : "填写"
+Application -> Insurer : "提交审核"
+Policyholder -> ChangeRequest : "提出"
+ChangeRequest -> Insurer : "提交审核"
+ChangeRequest ..> Endorsement : "批准后生成"
+Endorsement ..> Contract : "修订"
+Contract ..> TerminationEvent : "可被终止"
+
+' 义务流程
+Insurer -> PremiumNotice : "发送"
+Policyholder -> PaymentRecord : "支付"
+PaymentRecord ..> Contract : "影响合同状态"
+
+' 权利流程
+Policyholder ..|> Claimant : "可以是"
+Insured ..|> Claimant : "可以是"
+Beneficiary ..|> Claimant : "可以是"
+Claimant -> Claim : "提起"
+Claim -> InsuredEvent : "源于"
+Claim -> Insurer : "提交审核"
+Insurer -> ClaimDecision : "做出决定"
+Claim ..> ClaimDecision : "产生"
