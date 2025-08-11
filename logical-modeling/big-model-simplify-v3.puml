@@ -1,0 +1,134 @@
+@startuml
+!theme plain
+title "保险业务端到端全景模型 (理赔角色修正版)"
+
+skinparam actorStyle awesome
+skinparam package {
+  borderColor #52799C
+  borderThickness 2
+}
+skinparam arrow {
+  thickness 1.5
+}
+skinparam class {
+  backgroundColor #White
+  borderColor #333333
+  arrowColor #333333
+}
+skinparam abstract {
+  backgroundColor #FFFACD
+}
+
+' =========================================
+' 0. 全局参与者 (Global Actors)
+' =========================================
+class "产品与精算团队" as ProductTeam <<actor>>
+class "销售渠道(代理人/网销)" as SalesChannel <<actor>>
+class "客户/投保人" as Policyholder <<actor>>
+class "被保险人" as Insured <<actor>>
+class "受益人" as Beneficiary <<actor>>
+class "保险公司" as Insurer <<actor>>
+
+' V-- CHANGE 1: A new, specific role for the claimant is added. --V
+class "理赔申请人" as Claimant <<actor>>
+
+' V-- CHANGE 2: Relationships are added to show who can be a claimant. --V
+Policyholder ..|> Claimant : "可以是"
+Insured ..|> Claimant : "可以是"
+Beneficiary ..|> Claimant : "可以是"
+
+
+' =========================================
+' 1. 产品研发阶段 (Product Development)
+' =========================================
+package "产品研发与管理 (Product Development)" #LightGreen {
+  class "保险产品" as Product {
+    + 产品代码
+    + 产品名称
+  }
+  class "产品规格" as ProductSpec {
+    + 保障范围
+    + 保险条款
+  }
+  class "定价与费率" as Pricing {
+    + 费率表
+    + 计算规则
+  }
+  ProductTeam -> Product : "设计与定义"
+  Product *-- "1" ProductSpec : "包含"
+  Product *-- "1" Pricing : "包含"
+}
+
+
+' =========================================
+' 2. 销售与分销阶段 (Sales & Distribution)
+' =========================================
+package "销售与分销 (Sales & Distribution)" #LightYellow {
+  class "销售计划/报价" as Proposal {
+    + 建议书编号
+    + 报价详情
+  }
+  SalesChannel -> Proposal : "生成"
+  Proposal -> Policyholder : "提供给"
+}
+
+
+' =========================================
+' 3. 保险合同运营阶段 (Contract Operations)
+' =========================================
+package "保险合同运营 (Contract Operations)" #Azure {
+  class "<b>保险合同</b>" as Contract #LightSkyBlue {
+    + 合同号
+    --
+    合同状态
+  }
+
+  ' 合同运营内部的静态关系
+  Contract --> Insured : "提供保障"
+  Contract --> Beneficiary : "指定受益人"
+  Policyholder --> Contract : "持有"
+  Insurer --> Contract : "签发"
+
+  package "合同订立 (Establishment)" {
+    class Application as "投保单"
+    Policyholder -> Application : "填写"
+    Application -> Insurer : "提交审核"
+    Application ..> Contract : "成功后生成"
+  }
+
+  package "合同变更 (Amendment)" {
+    abstract class ChangeRequest as "变更申请"
+    class Endorsement as "批单"
+    Policyholder -> ChangeRequest : "提出"
+    ChangeRequest -> Insurer : "提交审核"
+    ChangeRequest ..> Endorsement : "批准后生成"
+    Endorsement ..> Contract : "修订"
+  }
+
+  package "合同理赔 (Claim)" {
+    class Claim as "理赔申请"
+    class InsuredEvent as "保险事故"
+    class ClaimDecision as "理赔决定"
+    ' V-- CHANGE 3: The action now originates from the correct Claimant role. --V
+    Claimant -> Claim : "提起"
+    Claim -> InsuredEvent : "源于"
+    Claim -> Insurer : "提交审核"
+    Claim ..> ClaimDecision : "产生"
+  }
+
+  package "合同终止 (Termination)" {
+    abstract class TerminationEvent as "终止事件"
+    class ExpirationEvent as "期间届满" extends TerminationEvent
+    class RescissionEvent as "合同解除" extends TerminationEvent
+    Contract ..> TerminationEvent : "因...而终止"
+  }
+}
+
+' =========================================
+' 4. 跨阶段核心关联 (Cross-Stage Core Relationships)
+' =========================================
+Product -> SalesChannel : "授权销售"
+Proposal ..> Application : "接受后发起"
+Contract ..> Product : "是...的实例"
+
+@enduml
